@@ -24,17 +24,7 @@ app.get('/', function(req, res) {
   console.log(req);
   res.send('<pre>' + JSON.stringify(received_updates, null, 2) + '</pre>');
 });
-app.get('/webhooks', (req, res) => {
-  const VERIFY_TOKEN = '2978610302'; // must match what you set in the subscription
-  const mode = req.query['hub.mode'];
-  const token = req.query['hub.verify_token'];
-  const challenge = req.query['hub.challenge'];
 
-  if (mode === 'subscribe' && token === VERIFY_TOKEN) {
-    return res.status(200).send(challenge); // plain text, exact value
-  }
-  return res.sendStatus(403);
-});
 app.get(['/facebook', '/instagram', '/threads'], function(req, res) {
   if (
     req.query['hub.mode'] == 'subscribe' &&
