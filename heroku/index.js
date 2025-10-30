@@ -9,8 +9,8 @@ var bodyParser = require('body-parser');
 var express = require('express');
 var app = express();
 var xhub = require('express-x-hub');
-
-const fs = require('fs').promises;
+const axios = require('axios');
+const fs = require('fs');
 const path = require('path');
 
 console.log('=== SERVER STARTING ===');
@@ -47,46 +47,62 @@ var received_updates = [];
 const DATA_FILE = path.join(__dirname, 'facebook_webhooks.json');
 
 // Initialize the JSON file if it doesn't exist
-async function initializeDataFile() {
-  try {
-    await fs.access(DATA_FILE);
-    console.log('✓ Data file exists:', DATA_FILE);
-  } catch (error) {
-    console.log('Creating new data file:', DATA_FILE);
-    await fs.writeFile(DATA_FILE, JSON.stringify([], null, 2));
-    console.log('✓ Data file created');
-  }
+function initializeDataFile() {
+  fs.access(DATA_FILE, function(err) {
+    if (err) {
+      console.log('Creating new data file:', DATA_FILE);
+      fs.writeFile(DATA_FILE, JSON.stringify([], null, 2), function(writeErr) {
+        if (writeErr) {
+          console.error('Failed to create data file:', writeErr);
+        } else {
+          console.log('✓ Data file created');
+        }
+      });
+    } else {
+      console.log('✓ Data file exists:', DATA_FILE);
+    }
+  });
 }
 
 // Save data to JSON file
-async function saveToFile(data) {
-  try {
-    // Read existing data
-    const fileContent = await fs.readFile(DATA_FILE, 'utf8');
-    const existingData = JSON.parse(fileContent);
+function saveToFile(data, callback) {
+  fs.readFile(DATA_FILE, 'utf8', function(err, fileContent) {
+    if (err) {
+      console.error('✗ Error reading file:', err);
+      if (callback) callback(false);
+      return;
+    }
+    
+    var existingData = [];
+    try {
+      existingData = JSON.parse(fileContent);
+    } catch (parseErr) {
+      console.error('✗ Error parsing JSON:', parseErr);
+      existingData = [];
+    }
     
     // Add new data with timestamp
-    const newEntry = {
+    var newEntry = {
       timestamp: new Date().toISOString(),
       data: data
     };
     existingData.push(newEntry);
     
     // Write back to file
-    await fs.writeFile(DATA_FILE, JSON.stringify(existingData, null, 2));
-    console.log('✓ Data saved to file. Total entries:', existingData.length);
-    
-    return true;
-  } catch (error) {
-    console.error('✗ Error saving to file:', error);
-    return false;
-  }
+    fs.writeFile(DATA_FILE, JSON.stringify(existingData, null, 2), function(writeErr) {
+      if (writeErr) {
+        console.error('✗ Error saving to file:', writeErr);
+        if (callback) callback(false);
+      } else {
+        console.log('✓ Data saved to file. Total entries:', existingData.length);
+        if (callback) callback(true);
+      }
+    });
+  });
 }
 
 // Initialize data file on startup
-initializeDataFile().catch(err => {
-  console.error('Failed to initialize data file:', err);
-});
+initializeDataFile();
 
 // Log all incoming requests
 app.use(function(req, res, next) {
@@ -103,6 +119,27 @@ app.use(function(req, res, next) {
 app.get('/', function(req, res) {
   console.log('GET / - Displaying received updates');
   res.send('<pre>' + JSON.stringify(received_updates, null, 2) + '</pre>');
+});
+
+// New endpoint to view the JSON file contents
+app.get('/facebook/data', function(req, res) {
+  console.log('GET /facebook/data - Reading stored webhooks');
+  fs.readFile(DATA_FILE, 'utf8', function(err, data) {
+    if (err) {
+      console.error('Error reading data file:', err);
+      res.status(500).send('Error reading data file');
+      return;
+    }
+    
+    try {
+      var jsonData = JSON.parse(data);
+      res.setHeader('Content-Type', 'application/json');
+      res.send(JSON.stringify(jsonData, null, 2));
+    } catch (parseErr) {
+      console.error('Error parsing JSON:', parseErr);
+      res.status(500).send('Error parsing data file');
+    }
+  });
 });
 
 app.get(['/facebook', '/instagram', '/threads'], function(req, res) {
@@ -126,7 +163,7 @@ app.get(['/facebook', '/instagram', '/threads'], function(req, res) {
   
 });
 
-app.post('/facebook', async function(req, res) {
+app.post('/facebook', function(req, res) {
   console.log('\n=== FACEBOOK POST REQUEST ===');
   console.log('Timestamp:', new Date().toISOString());
   console.log('Facebook request body:', JSON.stringify(req.body, null, 2));
@@ -146,8 +183,22 @@ app.post('/facebook', async function(req, res) {
   console.log('✓ Update stored in memory. Total updates:', received_updates.length);
   
   // Save to JSON file
-  await saveToFile(req.body);
-
+  saveToFile(req.body, function(success) {
+    if (success) {
+      console.log('✓ Successfully saved to file');
+    }
+  });
+  
+  axios.get('https://ben-team.app.n8n.cloud/webhook/heroku', {
+    params: { data: req.body }
+  })
+  .then(function(response) {
+    console.log('✓ Axios request successful');
+  })
+  .catch(function(error) {
+    console.error('✗ Axios request failed:', error);
+  });
+  
   res.sendStatus(200);
   console.log('✓ Response 200 sent');
 });
@@ -191,5 +242,6 @@ app.listen(app.get('port'), function() {
   console.log('- GET/POST /facebook');
   console.log('- GET/POST /instagram');
   console.log('- GET/POST /threads');
+  console.log('- GET /facebook/data (view stored webhooks)');
   console.log('========================\n');
 });
