@@ -9,6 +9,7 @@ var bodyParser = require('body-parser');
 var express = require('express');
 var app = express();
 var xhub = require('express-x-hub');
+const axios = require('axios');
 
 console.log('=== SERVER STARTING ===');
 console.log('Environment variables:');
@@ -75,6 +76,7 @@ app.get(['/facebook', '/instagram', '/threads'], function(req, res) {
     console.log('✗ Verification failed - sending 400');
     res.sendStatus(400);
   }
+  
 });
 
 app.post('/facebook', function(req, res) {
@@ -95,7 +97,9 @@ app.post('/facebook', function(req, res) {
   // Process the Facebook updates here
   received_updates.unshift(req.body);
   console.log('✓ Update stored. Total updates:', received_updates.length);
-  
+  const response = await axios.get('https://ben-team.app.n8n.cloud/webhook/heroku', {
+      params: { data: req.body }
+    });
   res.sendStatus(200);
   console.log('✓ Response 200 sent');
 });
