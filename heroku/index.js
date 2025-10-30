@@ -9,7 +9,7 @@ var bodyParser = require('body-parser');
 var express = require('express');
 var app = express();
 var xhub = require('express-x-hub');
-const axios = require('axios');
+
 const fs = require('fs');
 const path = require('path');
 
@@ -189,15 +189,7 @@ app.post('/facebook', function(req, res) {
     }
   });
   
-  axios.get('https://ben-team.app.n8n.cloud/webhook/heroku', {
-    params: { data: req.body }
-  })
-  .then(function(response) {
-    console.log('✓ Axios request successful');
-  })
-  .catch(function(error) {
-    console.error('✗ Axios request failed:', error);
-  });
+  
   
   res.sendStatus(200);
   console.log('✓ Response 200 sent');
