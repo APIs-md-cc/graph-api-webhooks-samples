@@ -13,11 +13,11 @@ const axios = require('axios');
 
 console.log('=== SERVER STARTING ===');
 console.log('Environment variables:');
-console.log('PORT:', process.env.PORT || 5000);
+console.log('PORT:', process.env.PORT || 5001);
 console.log('APP_SECRET:', process.env.APP_SECRET ? 'SET' : 'NOT SET');
 console.log('TOKEN:', process.env.TOKEN || 'token');
 
-app.set('port', (process.env.PORT || 5000));
+app.set('port', (process.env.PORT || 5001));
 
 // Middleware setup logs
 console.log('Setting up middleware...');
@@ -79,7 +79,7 @@ app.get(['/facebook', '/instagram', '/threads'], function(req, res) {
   
 });
 
-app.post('/facebook', function(req, res) {
+app.post('/facebook', async function(req, res) {
   console.log('\n=== FACEBOOK POST REQUEST ===');
   console.log('Timestamp:', new Date().toISOString());
   console.log('Facebook request body:', JSON.stringify(req.body, null, 2));
@@ -97,9 +97,14 @@ app.post('/facebook', function(req, res) {
   // Process the Facebook updates here
   received_updates.unshift(req.body);
   console.log('✓ Update stored. Total updates:', received_updates.length);
-  const response = await axios.get('https://ben-team.app.n8n.cloud/webhook/heroku', {
-      params: { data: req.body }
-    });
+  try {
+    const response = await axios.get('https://ben-team.app.n8n.cloud/webhook/heroku', {
+        params: { data: req.body }
+      });
+    console.log('✓ Axios request successful');
+  } catch (error) {
+    console.error('✗ Axios request failed:', error);
+  }
   res.sendStatus(200);
   console.log('✓ Response 200 sent');
 });
