@@ -24,6 +24,7 @@ console.log('[BOOT] PORT =', PORT);
 console.log('[BOOT] APP_SECRET set =', !!APP_SECRET);
 console.log('[BOOT] VERIFY_TOKEN =', VERIFY_TOKEN);
 
+app.set('port', (process.env.PORT || 5000)); app.listen(app.get('port')); app.use(xhub({ algorithm: 'sha1', secret: process.env.APP_SECRET })); app.use(bodyParser.json());
 // ---- Trust proxy (useful if behind ngrok/Heroku)
 app.set('trust proxy', true);
 
