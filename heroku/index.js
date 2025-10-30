@@ -84,6 +84,7 @@ function saveToFile(data, callback) {
     // Add new data with timestamp
     var newEntry = {
       timestamp: new Date().toISOString(),
+      receivedAt: new Date().toLocaleString('en-US', { timeZone: 'UTC' }),
       data: data
     };
     existingData.push(newEntry);
