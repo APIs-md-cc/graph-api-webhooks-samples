@@ -9,7 +9,9 @@ var bodyParser = require('body-parser');
 var express = require('express');
 var app = express();
 var xhub = require('express-x-hub');
-const axios = require('axios');
+
+const fs = require('fs').promises;
+const path = require('path');
 
 console.log('=== SERVER STARTING ===');
 console.log('Environment variables:');
@@ -40,6 +42,51 @@ console.log('Body parser configured');
 
 var token = process.env.TOKEN || 'token';
 var received_updates = [];
+
+// Path to the JSON file
+const DATA_FILE = path.join(__dirname, 'facebook_webhooks.json');
+
+// Initialize the JSON file if it doesn't exist
+async function initializeDataFile() {
+  try {
+    await fs.access(DATA_FILE);
+    console.log('✓ Data file exists:', DATA_FILE);
+  } catch (error) {
+    console.log('Creating new data file:', DATA_FILE);
+    await fs.writeFile(DATA_FILE, JSON.stringify([], null, 2));
+    console.log('✓ Data file created');
+  }
+}
+
+// Save data to JSON file
+async function saveToFile(data) {
+  try {
+    // Read existing data
+    const fileContent = await fs.readFile(DATA_FILE, 'utf8');
+    const existingData = JSON.parse(fileContent);
+    
+    // Add new data with timestamp
+    const newEntry = {
+      timestamp: new Date().toISOString(),
+      data: data
+    };
+    existingData.push(newEntry);
+    
+    // Write back to file
+    await fs.writeFile(DATA_FILE, JSON.stringify(existingData, null, 2));
+    console.log('✓ Data saved to file. Total entries:', existingData.length);
+    
+    return true;
+  } catch (error) {
+    console.error('✗ Error saving to file:', error);
+    return false;
+  }
+}
+
+// Initialize data file on startup
+initializeDataFile().catch(err => {
+  console.error('Failed to initialize data file:', err);
+});
 
 // Log all incoming requests
 app.use(function(req, res, next) {
@@ -96,15 +143,11 @@ app.post('/facebook', async function(req, res) {
   
   // Process the Facebook updates here
   received_updates.unshift(req.body);
-  console.log('✓ Update stored. Total updates:', received_updates.length);
-  try {
-    const response = await axios.get('https://ben-team.app.n8n.cloud/webhook/heroku', {
-        params: { data: req.body }
-      });
-    console.log('✓ Axios request successful');
-  } catch (error) {
-    console.error('✗ Axios request failed:', error);
-  }
+  console.log('✓ Update stored in memory. Total updates:', received_updates.length);
+  
+  // Save to JSON file
+  await saveToFile(req.body);
+
   res.sendStatus(200);
   console.log('✓ Response 200 sent');
 });
@@ -150,5 +193,3 @@ app.listen(app.get('port'), function() {
   console.log('- GET/POST /threads');
   console.log('========================\n');
 });
-
-// Remove the duplicate app.listen() at the bottom
