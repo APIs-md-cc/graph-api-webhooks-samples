@@ -23,6 +23,17 @@ console.log('Setting up middleware...');
 app.use(xhub({ algorithm: 'sha1', secret: process.env.APP_SECRET }));
 console.log('X-Hub middleware configured');
 
+app.use(function(req, res, next) {
+  console.log('\n=== RAW REQUEST (before body parser) ===');
+  console.log('Method:', req.method);
+  console.log('URL:', req.url);
+  console.log('Content-Type:', req.headers['content-type']);
+  console.log('Content-Length:', req.headers['content-length']);
+  console.log('User-Agent:', req.headers['user-agent']);
+  console.log('All headers:', JSON.stringify(req.headers, null, 2));
+  next();
+});
+
 app.use(bodyParser.json());
 console.log('Body parser configured');
 
