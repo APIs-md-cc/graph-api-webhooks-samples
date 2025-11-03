@@ -143,6 +143,29 @@ app.get('/facebook/data', function(req, res) {
   });
 });
 
+// Clear stored webhooks and in-memory cache
+app.delete('/facebook/data', function(req, res) {
+  console.log('DELETE /facebook/data - Clearing stored webhooks and in-memory updates');
+
+  fs.writeFile(DATA_FILE, JSON.stringify([], null, 2), function(err) {
+    if (err) {
+      console.error('Error clearing data file:', err);
+      res.status(500).json({ ok: false, error: 'Error clearing data file' });
+      return;
+    }
+
+    // Also clear the in-memory array
+    received_updates = [];
+    console.log('✓ Data file cleared and in-memory updates reset');
+
+    res.setHeader('Content-Type', 'application/json');
+    res.status(200).send(JSON.stringify({
+      ok: true,
+      message: 'Cleared stored webhooks (facebook_webhooks.json) and in-memory updates'
+    }, null, 2));
+  });
+});
+
 app.get(['/facebook', '/instagram', '/threads'], function(req, res) {
   console.log('=== WEBHOOK VERIFICATION REQUEST ===');
   console.log('Path:', req.path);
